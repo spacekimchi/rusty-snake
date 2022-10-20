@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use rand::prelude::random;
 use bevy::time::FixedTimestep;
+use std::collections::VecDeque;
 
 const SNAKE_HEAD_COLOR: Color = Color::rgb(0.7, 0.7, 0.7);
 const SNAKE_SEGMENT_COLOR: Color = Color::rgb(0.3, 0.3, 0.3);
@@ -19,6 +20,9 @@ struct SnakeSegment;
 
 #[derive(Default, Deref, DerefMut)]
 struct SnakeSegments(Vec<Entity>);
+
+#[derive(Default, Deref, DerefMut)]
+struct InputEventQueue(VecDeque<Direction>);
 
 #[derive(Component)]
 struct SnakeHead {
@@ -79,6 +83,7 @@ fn main() {
         })
         .insert_resource(SnakeSegments::default())
         .insert_resource(LastTailPosition::default())
+        .insert_resource(InputEventQueue::default())
         .add_startup_system(setup_camera)
         .add_startup_system(spawn_snake)
         .add_event::<GrowthEvent>()
@@ -133,7 +138,13 @@ fn spawn_snake(mut commands: Commands, mut segments: ResMut<SnakeSegments>) {
     ]);
 }
 
-fn food_spawner(mut commands: Commands) {
+fn food_spawner(
+    mut commands: Commands,
+    segments: ResMut<SnakeSegments>,
+    positions: Query<&Position>,
+) {
+    let food_pos = get_valid_food_pos(segments, positions);
+
     commands
         .spawn_bundle(SpriteBundle {
             sprite: Sprite {
@@ -143,11 +154,32 @@ fn food_spawner(mut commands: Commands) {
             ..default()
         })
         .insert(Food)
-        .insert(Position {
-            x: (random::<f32>() * ARENA_WIDTH as f32) as i32,
-            y: (random::<f32>() * ARENA_HEIGHT as f32) as i32,
-        })
+        .insert(food_pos)
         .insert(Size::square(0.8));
+}
+
+fn get_valid_food_pos(
+    segments: ResMut<SnakeSegments>,
+    positions: Query<&Position>,
+) -> Position {
+    let segment_positions = segments
+        .iter()
+        .map(|e| *positions.get(*e).unwrap())
+        .collect::<Vec<Position>>();
+    let mut valid_pos = false;
+    let mut x = 0;
+    let mut y = 0;
+    while !valid_pos {
+        x = (random::<f32>() * ARENA_WIDTH as f32) as i32;
+        y = (random::<f32>() * ARENA_HEIGHT as f32) as i32;
+        valid_pos = true;
+        for segment_pos in &segment_positions {
+            if segment_pos.x == x && segment_pos.y == y {
+                valid_pos = false;
+            }
+        }
+    }
+    Position { x, y }
 }
 
 fn spawn_segment(mut commands: Commands, position: Position) -> Entity {
@@ -165,22 +197,22 @@ fn spawn_segment(mut commands: Commands, position: Position) -> Entity {
         .id()
 }
 
-fn snake_movement_input(keyboard_input: Res<Input<KeyCode>>, mut heads: Query<&mut SnakeHead>) {
-    if let Some(mut head) = heads.iter_mut().next() {
-        let dir: Direction = if keyboard_input.pressed(KeyCode::Left) {
-            Direction::Left
-        } else if keyboard_input.pressed(KeyCode::Down) {
-            Direction::Down
-        } else if keyboard_input.pressed(KeyCode::Up) {
-            Direction::Up
-        } else if keyboard_input.pressed(KeyCode::Right) {
-            Direction::Right
-        } else {
-            head.direction
+fn snake_movement_input(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut heads: Query<&mut SnakeHead>,
+    mut input_event_queue: ResMut<InputEventQueue>,
+) {
+    if let Some(_head) = heads.iter_mut().next() {
+        if keyboard_input.just_pressed(KeyCode::Left) {
+            input_event_queue.push_back(Direction::Left);
+        } else if keyboard_input.just_pressed(KeyCode::Down) {
+            input_event_queue.push_back(Direction::Down);
+        } else if keyboard_input.just_pressed(KeyCode::Up) {
+            input_event_queue.push_back(Direction::Up);
+        } else if keyboard_input.just_pressed(KeyCode::Right) {
+            input_event_queue.push_back(Direction::Right);
         };
-        if dir != head.direction.opposite() {
-            head.direction = dir;
-        }
+
     }
 }
 
@@ -188,15 +220,21 @@ fn snake_movement(
     segments: ResMut<SnakeSegments>,
     mut game_over_writer: EventWriter<GameOverEvent>,
     mut last_tail_position: ResMut<LastTailPosition>,
-    mut heads: Query<(Entity, &SnakeHead)>,
+    mut heads: Query<(Entity, &mut SnakeHead)>,
     mut positions: Query<&mut Position>,
+    mut input_event_queue: ResMut<InputEventQueue>,
 ) {
-    if let Some((head_entity, head)) = heads.iter_mut().next() {
+    if let Some((head_entity, mut head)) = heads.iter_mut().next() {
         let segment_positions = segments
             .iter()
             .map(|e| *positions.get_mut(*e).unwrap())
             .collect::<Vec<Position>>();
         let mut head_pos = positions.get_mut(head_entity).unwrap();
+        if let Some(direction) = input_event_queue.pop_front() {
+            if head.direction.opposite() != direction {
+                head.direction = direction;
+            }
+        }
         match &head.direction {
             Direction::Left => {
                 head_pos.x -= 1;
