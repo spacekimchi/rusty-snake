@@ -212,7 +212,6 @@ fn snake_movement_input(
         } else if keyboard_input.just_pressed(KeyCode::Right) {
             input_event_queue.push_back(Direction::Right);
         };
-
     }
 }
 
