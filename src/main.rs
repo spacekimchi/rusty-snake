@@ -20,6 +20,12 @@ struct SnakeSegment;
 #[derive(Default, Deref, DerefMut)]
 struct SnakeSegments(Vec<Entity>);
 
+<<<<<<< Updated upstream
+=======
+#[derive(Default, Deref, DerefMut)]
+struct InputEventQueue(VecDeque<Direction>);
+
+>>>>>>> Stashed changes
 #[derive(Component)]
 struct SnakeHead {
     direction: Direction,
@@ -79,6 +85,10 @@ fn main() {
         })
         .insert_resource(SnakeSegments::default())
         .insert_resource(LastTailPosition::default())
+<<<<<<< Updated upstream
+=======
+        .insert_resource(InputEventQueue::default())
+>>>>>>> Stashed changes
         .add_startup_system(setup_camera)
         .add_startup_system(spawn_snake)
         .add_event::<GrowthEvent>()
@@ -165,6 +175,7 @@ fn spawn_segment(mut commands: Commands, position: Position) -> Entity {
         .id()
 }
 
+<<<<<<< Updated upstream
 fn snake_movement_input(keyboard_input: Res<Input<KeyCode>>, mut heads: Query<&mut SnakeHead>) {
     if let Some(mut head) = heads.iter_mut().next() {
         let dir: Direction = if keyboard_input.pressed(KeyCode::Left) {
@@ -181,6 +192,23 @@ fn snake_movement_input(keyboard_input: Res<Input<KeyCode>>, mut heads: Query<&m
         if dir != head.direction.opposite() {
             head.direction = dir;
         }
+=======
+fn snake_movement_input(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut heads: Query<&mut SnakeHead>,
+    mut input_event_queue: ResMut<InputEventQueue>,
+) {
+    if let Some(_head) = heads.iter_mut().next() {
+        if keyboard_input.just_pressed(KeyCode::Left) {
+            input_event_queue.push_back(Direction::Left);
+        } else if keyboard_input.just_pressed(KeyCode::Down) {
+            input_event_queue.push_back(Direction::Down);
+        } else if keyboard_input.just_pressed(KeyCode::Up) {
+            input_event_queue.push_back(Direction::Up);
+        } else if keyboard_input.just_pressed(KeyCode::Right) {
+            input_event_queue.push_back(Direction::Right);
+        };
+>>>>>>> Stashed changes
     }
 }
 
@@ -190,6 +218,10 @@ fn snake_movement(
     mut last_tail_position: ResMut<LastTailPosition>,
     mut heads: Query<(Entity, &SnakeHead)>,
     mut positions: Query<&mut Position>,
+<<<<<<< Updated upstream
+=======
+    mut input_event_queue: ResMut<InputEventQueue>,
+>>>>>>> Stashed changes
 ) {
     if let Some((head_entity, head)) = heads.iter_mut().next() {
         let segment_positions = segments
@@ -197,6 +229,14 @@ fn snake_movement(
             .map(|e| *positions.get_mut(*e).unwrap())
             .collect::<Vec<Position>>();
         let mut head_pos = positions.get_mut(head_entity).unwrap();
+<<<<<<< Updated upstream
+=======
+        if let Some(direction) = input_event_queue.pop_front() {
+            if direction != head.direction.opposite() {
+                head.direction = direction;
+            }
+        }
+>>>>>>> Stashed changes
         match &head.direction {
             Direction::Left => {
                 head_pos.x -= 1;
