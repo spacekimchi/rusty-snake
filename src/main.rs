@@ -11,6 +11,7 @@ const ARENA_HEIGHT: u32 = 10;
 
 struct GameOverEvent;
 struct GrowthEvent;
+// git test
 
 #[derive(Default)]
 struct LastTailPosition(Option<Position>);
